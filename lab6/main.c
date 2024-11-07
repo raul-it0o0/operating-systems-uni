@@ -11,45 +11,63 @@ int main(int argc, char* argv[]) {
     }
 
     int num = atoi(argv[1]);
-    // fork first child
-    int pid1 = fork();
-    // wait for first child to finish
-    wait(NULL);
+    int status;
+    int sum = 0, prod = 1;
 
-    if (pid1 == 0) {
-        // block executed by first child process
-        int sum = 0;
-        for (int i = 1; i <= num; i++)
-            sum = sum + i;
-        printf("[ID = %d] Sum of positive integers up to %d is %d\n", getpid(), num, sum);
-        exit(0);
-    }
-    else if (pid1 < 0) {
-        // negative pid -> error
-        fprintf(stderr, "Error creating child process.\n");
-        return 1;
-    }
+    int pid_first_child = fork();
+    wait(&status);
+    if (pid_first_child == 0) {
+        // first child
 
-    // fork second child
-    int pid2 = fork();
-    // wait for second child to finish
-    wait(NULL);
+        // spawn num subchildren
+        for (int i = 1; i <= num; i++) {
+            int pid_first_child_subprocess = fork();
+            if (pid_first_child_subprocess == 0)
+                exit(i);
+            // make parent (first child) wait
+            wait(&status);
+            sum += WEXITSTATUS(status);
+        }
 
-    if (pid2 == 0) {
-        // block executed by second child process
-        int prod = 1;
-        for (int i = 1; i <= num; i++)
-            prod = prod * i;
-        printf("[ID = %d] Factorial of %d is %d\n", getpid(), num, prod);
-        exit(0);
-    }
-    else if (pid2 < 0) {
-        // negative pid -> error
-        fprintf(stderr, "Error creating child process.\n");
-        return 1;
+        // exit from first child
+        exit(sum);
+        // NOTE: exit only accepts int parameters, so passing a value larger
+        //  than the upper signed int limit (2^16 = 65536) will result in
+        //  undefined behavior
     }
 
-    // print from parent
-    printf("[ID = %d] Done\n", getpid());
-    return 0;
+    // Get the first child's exit code
+    printf("First child exited with: %d\n", WEXITSTATUS(status));
+
+    // fork the second child
+    int pid_second_child = fork();
+    wait(&status);
+    if (pid_second_child == 0) {
+        // second child
+
+        // spawn num subchildren
+        for (int i = 1; i <= num; i++) {
+            int pid_second_child_subprocess = fork();
+            if (pid_second_child_subprocess == 0)
+                exit(i);
+            // make parent (second child) wait
+            wait(&status);
+            // status gets changed into the subprocess return code inside function
+
+            prod *= WEXITSTATUS(status);
+        }
+
+        // exit from second child
+        exit(prod);
+        // NOTE: exit only accepts int parameters, so passing a value larger
+        //  than the upper signed int limit (2^16 = 65536) will result in
+        //  undefined behavior
+    }
+
+    // Get the first child's exit code
+    printf("Second child exited with: %d\n", WEXITSTATUS(status));
+
+    printf("Exited from parent");
+    exit(0);
+
 }
