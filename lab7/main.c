@@ -46,7 +46,6 @@ int main(int argc, char* argv[]) {
     int bytes_read = 0, bytes_written = 0;
 
     // fork first child
-    int pid_parent = getpid();
     int pid_first_child = fork();
     if (pid_first_child == 0) {
         // first child
